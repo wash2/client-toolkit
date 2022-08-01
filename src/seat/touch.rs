@@ -18,15 +18,15 @@ pub(crate) struct TouchDataInner {
 
 #[macro_export]
 macro_rules! delegate_touch {
-    ($ty: ty) => {
-        $crate::reexports::client::delegate_dispatch!($ty:
+    ($(@<$( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+>)? $ty: ty) => {
+        $crate::reexports::client::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty:
             [
                 $crate::reexports::client::protocol::wl_touch::WlTouch: $crate::seat::touch::TouchData,
             ] => $crate::seat::SeatState
         );
     };
-    ($ty: ty, touch: [$($td:ty),* $(,)?]) => {
-        $crate::reexports::client::delegate_dispatch!($ty:
+    ($(@<$( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+>)? $ty: ty, touch: [$($td:ty),* $(,)?]) => {
+        $crate::reexports::client::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty:
             [
                 $(
                     $crate::reexports::client::protocol::wl_touch::WlTouch: $td,
