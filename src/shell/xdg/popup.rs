@@ -293,7 +293,7 @@ macro_rules! delegate_xdg_popup {
             $crate::reexports::protocols::xdg::shell::client::xdg_popup::XdgPopup: $crate::shell::xdg::popup::PopupData
         ] => $crate::shell::xdg::popup::PopupData);
         $crate::reexports::client::delegate_dispatch!($(@< $( $lt $( : $clt $(+ $dlt )* )? ),+ >)? $ty: [
-            $crate::reexports::protocols::xdg::shell::client::xdg_surface::XdgSurface: $crate::shell::xdg::popup::PopupData,
+            $crate::reexports::protocols::xdg::shell::client::xdg_surface::XdgSurface: $crate::shell::xdg::popup::PopupData
         ] => $crate::shell::xdg::popup::PopupData);
     };
 }
