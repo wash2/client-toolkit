@@ -12,7 +12,7 @@ description = "Toolkit for making client wayland applications."
 readme = "README.md"
 
 [package.metadata.docs.rs]
-features = ["calloop", "xkbcommon"]
+features = ["calloop", "xkbcommon", "system"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
@@ -38,7 +38,8 @@ xkbcommon = { git = "https://github.com/rust-x-bindings/xkbcommon-rs", optional 
 calloop = { version = "0.10.0", optional = true }
 
 [features]
-default = ["calloop", "xkbcommon"]
+default = ["calloop", "xkbcommon", "system"]
+system = ["wayland-backend/client_system"]
 
 [build-dependencies]
 pkg-config = "0.3"
