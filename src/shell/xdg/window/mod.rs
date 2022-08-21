@@ -313,9 +313,7 @@ impl WindowBuilder {
 
             let xdg_toplevel = xdg_surface
                 .xdg_surface()
-                .get_toplevel(qh, WindowData(weak.clone()))
-                .map_err(|e| err = Err(e.into()))
-                .ok()?;
+                .get_toplevel(qh, WindowData(weak.clone()));
 
             // If server side decorations are available, create the toplevel decoration.
             let toplevel_decoration = if let Some(decoration_manager) = decoration_manager {
@@ -326,8 +324,7 @@ impl WindowBuilder {
                     _ => {
                         // Create the toplevel decoration.
                         let toplevel_decoration = decoration_manager
-                            .get_toplevel_decoration(&xdg_toplevel, qh, WindowData(weak.clone()))
-                            .expect("failed to create toplevel decoration");
+                            .get_toplevel_decoration(&xdg_toplevel, qh, WindowData(weak.clone()));
 
                         // Tell the compositor we would like a specific mode.
                         let mode = match self.decorations {

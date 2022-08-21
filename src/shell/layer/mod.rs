@@ -145,9 +145,7 @@ impl LayerSurfaceBuilder {
                     self.namespace.unwrap_or_default(),
                     qh,
                     LayerSurfaceData { inner: weak.clone() },
-                )
-                .map_err(|e| err = Err(e.into()))
-                .ok()?;
+                );
 
             Some(LayerSurfaceInner {
                 wl_surface: surface.clone(),
