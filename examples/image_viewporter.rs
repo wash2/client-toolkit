@@ -77,8 +77,7 @@ fn main() {
             .viewporter
             .get()
             .expect("Requires wp_viewporter")
-            .get_viewport(window.wl_surface(), &qh, ())
-            .expect("viewport");
+            .get_viewport(window.wl_surface(), &qh, ());
 
         state.windows.push(ImageViewer {
             width: image.width(),

@@ -99,9 +99,7 @@ impl Popup {
                     .ok()?;
             let xdg_popup = surface
                 .xdg_surface()
-                .get_popup(parent, position, qh, PopupData { inner: weak.clone() })
-                .map_err(|e| err = Err(e.into()))
-                .ok()?;
+                .get_popup(parent, position, qh, PopupData { inner: weak.clone() });
 
             Some(PopupInner {
                 surface,

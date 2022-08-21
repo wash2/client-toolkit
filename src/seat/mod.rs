@@ -129,8 +129,7 @@ impl SeatState {
             return Err(SeatError::UnsupportedCapability(Capability::Pointer));
         }
 
-        let pointer = seat.get_pointer(qh, pointer_data)?;
-        Ok(pointer)
+        Ok(seat.get_pointer(qh, pointer_data))
     }
 
     /// Creates a touch handle from a seat.
@@ -171,8 +170,7 @@ impl SeatState {
             return Err(SeatError::UnsupportedCapability(Capability::Touch));
         }
 
-        let touch = seat.get_touch(qh, udata)?;
-        Ok(touch)
+        Ok(seat.get_touch(qh, udata))
     }
 }
 
