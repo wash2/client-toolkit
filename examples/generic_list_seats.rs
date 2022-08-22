@@ -14,8 +14,11 @@ fn main() {
     let mut event_queue = conn.new_event_queue();
     let qh = event_queue.handle();
 
-    let mut list_seats =
-        ListSeats { registry_state: RegistryState::new(&conn, &qh), seat_state: SeatState::new(), _dummy: MyTest{} };
+    let mut list_seats = ListSeats {
+        registry_state: RegistryState::new(&conn, &qh),
+        seat_state: SeatState::new(),
+        _dummy: MyTest {},
+    };
 
     event_queue.blocking_dispatch(&mut list_seats).unwrap();
     event_queue.blocking_dispatch(&mut list_seats).unwrap();
@@ -45,7 +48,7 @@ struct ListSeats<T: Test + 'static> {
     _dummy: T,
 }
 
-impl<T: Test + 'static>  SeatHandler for ListSeats<T> {
+impl<T: Test + 'static> SeatHandler for ListSeats<T> {
     fn seat_state(&mut self) -> &mut SeatState {
         &mut self.seat_state
     }

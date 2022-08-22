@@ -54,7 +54,7 @@ fn main() {
         keyboard: None,
         keyboard_focus: false,
         pointer: None,
-        _dummy: MyTest{},
+        _dummy: MyTest {},
     };
 
     while !simple_window.registry_state.ready() {
@@ -101,7 +101,6 @@ pub trait Test {
 pub struct MyTest {}
 
 impl Test for MyTest {}
-
 
 struct SimpleWindow<T: Test + 'static> {
     registry_state: RegistryState,
