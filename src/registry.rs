@@ -4,10 +4,9 @@
 //!
 //! [`RegistryState`] provides an interface to bind globals regularly, creating an object with each new
 //! instantiation or caching bound globals to prevent duplicate object instances from being created. Binding
-//! a global regularly is accomplished through [`RegistryState::bind_once`]. For caching a bound global use
-//! [`RegistryState::bind_cached`].
+//! a global regularly is accomplished through [`RegistryState::bind_one`].
 //!
-//! The [`delegate_registry`] macro is used to implement handling for [`wl_registry`].
+//! The [`delegate_registry`](crate::delegate_registry) macro is used to implement handling for [`wl_registry`].
 //!
 //! ## Sample implementation of [`RegistryHandler`]
 //!
@@ -73,7 +72,6 @@ use crate::{
     globals::{GlobalData, ProvidesBoundGlobal},
 };
 use wayland_client::{
-    backend::InvalidId,
     protocol::{wl_callback, wl_registry},
     Connection, Dispatch, Proxy, QueueHandle,
 };
@@ -83,6 +81,8 @@ use wayland_client::{
 ///
 /// Delegates that choose to implement this trait may be used in [`registry_handlers`] which
 /// automatically notifies delegates about the creation and destruction of globals.
+///
+/// [`registry_handlers`]: crate::registry_handlers
 ///
 /// Note that in order to delegate registry handling to a type which implements this trait, your `D` data type
 /// must implement [`ProvidesRegistryState`].
@@ -99,7 +99,7 @@ where
     ///
     /// The provided registry handle may be used to bind the global.  This is not called during
     /// initial enumeration of globals, only for globals added after the calls to
-    /// [`Registryhandler::ready`].  It is primarily useful for multi-instance globals such as
+    /// [`RegistryHandler::ready`].  It is primarily useful for multi-instance globals such as
     /// `wl_output` and `wl_seat`.
     ///
     /// The default implementation does nothing.
@@ -167,10 +167,6 @@ pub enum BindError {
     /// The requested version of the global is not supported.
     #[error("the requested version of the global is not supported")]
     UnsupportedVersion,
-
-    /// Protocol error.
-    #[error(transparent)]
-    Protocol(#[from] InvalidId),
 
     /// The requested global was not found in the registry.
     #[error("the requested global was not found in the registry")]

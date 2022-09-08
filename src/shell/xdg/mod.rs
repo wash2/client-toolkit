@@ -41,10 +41,16 @@ impl XdgPositioner {
         wm_base: &impl ProvidesBoundGlobal<xdg_wm_base::XdgWmBase, 4>,
     ) -> Result<Self, GlobalError> {
         wm_base
-            .bound_global()?
-            .send_constructor(xdg_wm_base::Request::CreatePositioner {}, Arc::new(PositionerData))
+            .bound_global()
+            .map(|wm_base| {
+                wm_base
+                    .send_constructor(
+                        xdg_wm_base::Request::CreatePositioner {},
+                        Arc::new(PositionerData),
+                    )
+                    .unwrap_or_else(|_| Proxy::inert(wm_base.backend().clone()))
+            })
             .map(XdgPositioner)
-            .map_err(From::from)
     }
 }
 
@@ -85,7 +91,7 @@ impl XdgShellSurface {
     /// Creates an [`XdgShellSurface`].
     ///
     /// This function is generally intended to be called in a higher level abstraction, such as
-    /// [`XdgWindowState::create_window`](self::window::XdgWindowState::create_window).
+    /// [`Window::builder`](self::window::Window::builder).
     ///
     /// The created [`XdgShellSurface`] will destroy the underlying [`XdgSurface`] or [`WlSurface`] when
     /// dropped. Higher level abstractions are responsible for ensuring the destruction order of protocol
