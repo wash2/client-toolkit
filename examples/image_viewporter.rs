@@ -73,11 +73,11 @@ fn main() {
             .map(&qh, &state.xdg_shell_state, &mut state.xdg_window_state, surface)
             .expect("window creation");
 
-        let viewport = state
-            .viewporter
-            .get()
-            .expect("Requires wp_viewporter")
-            .get_viewport(window.wl_surface(), &qh, ());
+        let viewport = state.viewporter.get().expect("Requires wp_viewporter").get_viewport(
+            window.wl_surface(),
+            &qh,
+            (),
+        );
 
         state.windows.push(ImageViewer {
             width: image.width(),
