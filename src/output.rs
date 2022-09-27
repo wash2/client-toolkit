@@ -293,6 +293,12 @@ pub struct OutputInfo {
     /// and virtual outputs).
     pub physical_size: (i32, i32),
 
+    /// Logical dimensions of this output.
+    pub logical_size: (i32, i32),
+
+    /// Logical dimensions of this output.
+    pub logical_position: (i32, i32),
+
     /// The subpixel layout for this output.
     pub subpixel: Subpixel,
 
@@ -569,8 +575,26 @@ where
     ) {
         match event {
             // Already provided by wl_output
-            zxdg_output_v1::Event::LogicalPosition { x: _, y: _ } => (),
-            zxdg_output_v1::Event::LogicalSize { width: _, height: _ } => (),
+            zxdg_output_v1::Event::LogicalPosition { x , y } => {
+                let inner = state
+                    .output_state()
+                    .outputs
+                    .iter_mut()
+                    .find(|inner| inner.xdg_output.as_ref() == Some(output))
+                    .expect("Received event for dead output");
+
+                inner.pending_info.logical_position = (x, y);
+            },
+            zxdg_output_v1::Event::LogicalSize { width, height } => {
+                let inner = state
+                    .output_state()
+                    .outputs
+                    .iter_mut()
+                    .find(|inner| inner.xdg_output.as_ref() == Some(output))
+                    .expect("Received event for dead output");
+
+                inner.pending_info.logical_size = (width, height);
+            },
 
             zxdg_output_v1::Event::Name { name } => {
                 let inner = state
@@ -721,6 +745,8 @@ impl OutputInfo {
             make: String::new(),
             location: (0, 0),
             physical_size: (0, 0),
+            logical_size: (0, 0),
+            logical_position: (0, 0),
             subpixel: Subpixel::Unknown,
             transform: Transform::Normal,
             scale_factor: 1,
