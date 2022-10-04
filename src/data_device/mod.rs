@@ -239,7 +239,7 @@ impl FromRawFd for ReadPipe {
 #[cfg(not(feature = "calloop"))]
 impl FromRawFd for ReadPipe {
     unsafe fn from_raw_fd(fd: RawFd) -> ReadPipe {
-        ReadPipe { file: FromRawFd::from_raw_fd(fd) }
+        ReadPipe { file: unsafe {  FromRawFd::from_raw_fd(fd) } }
     }
 }
 
