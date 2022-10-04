@@ -16,6 +16,7 @@ pub mod reexports {
 }
 
 pub mod compositor;
+pub mod data_device;
 pub mod error;
 #[cfg(feature = "calloop")]
 pub mod event_loop;
