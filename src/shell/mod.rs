@@ -43,4 +43,6 @@
 //! [`Layer`]: self::layer::Layer
 
 pub mod layer;
+#[cfg(feature = "plasma")]
+pub mod plasma;
 pub mod xdg;
