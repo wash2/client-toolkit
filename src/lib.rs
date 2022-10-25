@@ -22,6 +22,7 @@ pub mod event_loop;
 pub mod globals;
 pub mod output;
 pub mod registry;
+#[cfg(feature = "seat")]
 pub mod seat;
 pub mod shell;
 pub mod shm;

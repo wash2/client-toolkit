@@ -12,7 +12,7 @@ description = "Toolkit for making client wayland applications."
 readme = "README.md"
 
 [package.metadata.docs.rs]
-features = ["calloop", "xkbcommon"]
+features = ["calloop", "xkbcommon", "seat"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
@@ -34,7 +34,8 @@ xkbcommon = { version = "0.5", optional = true, features = ["wayland"] }
 calloop = { version = "0.10.0", optional = true }
 
 [features]
-default = ["calloop", "xkbcommon"]
+default = ["calloop", "xkbcommon", "seat"]
+seat = []
 
 [build-dependencies]
 pkg-config = "0.3"
