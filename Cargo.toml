@@ -31,7 +31,7 @@ wayland-cursor = "=0.30.0-beta.13"
 wayland-scanner = "=0.30.0-beta.13"
 
 xkbcommon = { version = "0.5", optional = true, features = ["wayland"] }
-calloop = { version = "0.10.0", optional = true }
+calloop = { version = "0.10.3", optional = true }
 
 [features]
 default = ["calloop", "xkbcommon"]
