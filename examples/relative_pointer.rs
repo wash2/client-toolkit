@@ -11,11 +11,14 @@ use smithay_client_toolkit::{
         relative_pointer::{RelativeMotionEvent, RelativePointerHandler, RelativePointerState},
         Capability, SeatHandler, SeatState,
     },
-    shell::xdg::{
-        window::{Window, WindowConfigure, WindowHandler, XdgWindowState},
-        XdgShellState,
+    shell::{
+        xdg::{
+            window::{Window, WindowConfigure, WindowDecorations, WindowHandler},
+            XdgShell,
+        },
+        WaylandSurface,
     },
-    shm::{slot::SlotPool, ShmHandler, ShmState},
+    shm::{slot::SlotPool, Shm, ShmHandler},
 };
 use wayland_client::{
     globals::registry_queue_init,
@@ -32,36 +35,45 @@ fn main() {
     let (globals, mut event_queue) = registry_queue_init(&conn).unwrap();
     let qh = event_queue.handle();
 
+    // The compositor (not to be confused with the server which is commonly called the compositor) allows
+    // configuring surfaces to be presented.
+    let compositor = CompositorState::bind(&globals, &qh).expect("wl_compositor not available");
+    // For desktop platforms, the XDG shell is the standard protocol for creating desktop windows.
+    let xdg_shell = XdgShell::bind(&globals, &qh).expect("xdg shell is not available");
+    // Since we are not using the GPU in this example, we use wl_shm to allow software rendering to a buffer
+    // we share with the compositor process.
+    let shm = Shm::bind(&globals, &qh).expect("wl shm is not available.");
+
+    let surface = compositor.create_surface(&qh);
+    // And then we can create the window.
+    let window = xdg_shell.create_window(surface, WindowDecorations::RequestServer, &qh);
+    // Configure the window, this may include hints to the compositor about the desired minimum size of the
+    // window, app id for WM identification, the window title, etc.
+    window.set_title("A wayland window");
+    // GitHub does not let projects use the `org.github` domain but the `io.github` domain is fine.
+    window.set_app_id("io.github.smithay.client-toolkit.RelativePointer");
+    window.set_min_size(Some((256, 256)));
+    // In order for the window to be mapped, we need to perform an initial commit with no attached buffer.
+    // For more info, see WaylandSurface::commit
+    //
+    // The compositor will respond with an initial configure that we can then use to present to the window with
+    // the correct options.
+    window.commit();
+
     let mut simple_window = SimpleWindow {
         registry_state: RegistryState::new(&globals),
         seat_state: SeatState::new(&globals, &qh),
         output_state: OutputState::new(&globals, &qh),
-        compositor_state: CompositorState::bind(&globals, &qh)
-            .expect("wl_compositor not available"),
-        shm_state: ShmState::bind(&globals, &qh).expect("wl_shm not available"),
-        xdg_shell_state: XdgShellState::bind(&globals, &qh).expect("xdg shell not available"),
-        xdg_window_state: XdgWindowState::bind(&globals, &qh),
+        shm,
         relative_pointer_state: RelativePointerState::bind(&globals, &qh),
 
         exit: false,
         width: 256,
         height: 256,
-        window: None,
+        window,
         pointer: None,
         relative_pointer: None,
     };
-
-    let surface = simple_window.compositor_state.create_surface(&qh);
-
-    let window = Window::builder()
-        .title("A wayland window")
-        // GitHub does not let projects use the `org.github` domain but the `io.github` domain is fine.
-        .app_id("io.github.smithay.client-toolkit.RelativePointer")
-        .min_size((256, 256))
-        .map(&qh, &simple_window.xdg_shell_state, &mut simple_window.xdg_window_state, surface)
-        .expect("window creation");
-
-    simple_window.window = Some(window);
 
     while !simple_window.exit {
         event_queue.blocking_dispatch(&mut simple_window).unwrap();
@@ -72,16 +84,13 @@ struct SimpleWindow {
     registry_state: RegistryState,
     seat_state: SeatState,
     output_state: OutputState,
-    compositor_state: CompositorState,
-    shm_state: ShmState,
-    xdg_shell_state: XdgShellState,
-    xdg_window_state: XdgWindowState,
+    shm: Shm,
     relative_pointer_state: RelativePointerState,
 
     exit: bool,
     width: u32,
     height: u32,
-    window: Option<Window>,
+    window: Window,
     pointer: Option<wl_pointer::WlPointer>,
     relative_pointer: Option<zwp_relative_pointer_v1::ZwpRelativePointerV1>,
 }
@@ -235,42 +244,41 @@ impl RelativePointerHandler for SimpleWindow {
 }
 
 impl ShmHandler for SimpleWindow {
-    fn shm_state(&mut self) -> &mut ShmState {
-        &mut self.shm_state
+    fn shm_state(&mut self) -> &mut Shm {
+        &mut self.shm
     }
 }
 
 impl SimpleWindow {
     pub fn draw(&mut self, _conn: &Connection, qh: &QueueHandle<Self>) {
-        if let Some(window) = self.window.as_ref() {
-            let width = self.width;
-            let height = self.height;
-            let stride = self.width as i32 * 4;
+        let window = &self.window;
+        let width = self.width;
+        let height = self.height;
+        let stride = self.width as i32 * 4;
 
-            let mut pool = SlotPool::new(width as usize * height as usize * 4, &self.shm_state)
-                .expect("Failed to create pool");
+        let mut pool = SlotPool::new(width as usize * height as usize * 4, &self.shm)
+            .expect("Failed to create pool");
 
-            let buffer = pool
-                .create_buffer(width as i32, height as i32, stride, wl_shm::Format::Xrgb8888)
-                .expect("create buffer")
-                .0;
+        let buffer = pool
+            .create_buffer(width as i32, height as i32, stride, wl_shm::Format::Xrgb8888)
+            .expect("create buffer")
+            .0;
 
-            for i in pool.canvas(&buffer).unwrap().chunks_exact_mut(4) {
-                i[0] = 255;
-                i[1] = 255;
-                i[2] = 255;
-            }
-
-            // Damage the entire window
-            window.wl_surface().damage_buffer(0, 0, self.width as i32, self.height as i32);
-
-            // Request our next frame
-            window.wl_surface().frame(qh, window.wl_surface().clone());
-
-            // Attach and commit to present.
-            buffer.attach_to(window.wl_surface()).expect("buffer attach");
-            window.wl_surface().commit();
+        for i in pool.canvas(&buffer).unwrap().chunks_exact_mut(4) {
+            i[0] = 255;
+            i[1] = 255;
+            i[2] = 255;
         }
+
+        // Damage the entire window
+        window.wl_surface().damage_buffer(0, 0, self.width as i32, self.height as i32);
+
+        // Request our next frame
+        window.wl_surface().frame(qh, window.wl_surface().clone());
+
+        // Attach and commit to present.
+        buffer.attach_to(window.wl_surface()).expect("buffer attach");
+        window.wl_surface().commit();
     }
 }
 
