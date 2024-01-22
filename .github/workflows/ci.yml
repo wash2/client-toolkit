@@ -37,19 +37,19 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --no-default-features --lib ${{ matrix.rust == '1.65.0' && '--tests' || '' }}
+          args: --no-default-features --lib ${{ matrix.rust == '1.65.0' && '--lib' || '' }}
 
       - name: Test doc no features
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --no-default-features --doc ${{ matrix.rust == '1.65.0' && '--tests' || '' }}
+          args: --no-default-features --doc ${{ matrix.rust == '1.65.0' && '--lib' || '' }}
 
       - name: Test full features
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-features ${{ matrix.rust == '1.65.0' && '--tests' || '' }}
+          args: --all-features ${{ matrix.rust == '1.65.0' && '--lib' || '' }}
 
   lint:
     runs-on: ubuntu-latest
