@@ -192,7 +192,7 @@ impl RegistryState {
     pub fn globals_by_interface<'a>(
         &'a self,
         interface: &'a str,
-    ) -> impl Iterator<Item = &Global> + 'a {
+    ) -> impl Iterator<Item = &'a Global> + 'a {
         self.globals.iter().filter(move |g| g.interface == interface)
     }
 
@@ -402,6 +402,13 @@ impl<I: Proxy + 'static, const MAX_VERSION: u32> SimpleGlobal<I, MAX_VERSION> {
     pub fn with_min_version(&self, min_version: u32) -> Result<&I, GlobalError> {
         self.proxy.with_min_version(min_version)
     }
+
+    /// Construct an instance from an already bound proxy.
+    ///
+    /// Useful when a [`ProvidesBoundGlobal`] implementation is needed.
+    pub fn from_bound(proxy: I) -> Self {
+        Self { proxy: GlobalProxy::Bound(proxy) }
+    }
 }
 
 impl<I: Proxy + Clone, const MAX_VERSION: u32> ProvidesBoundGlobal<I, MAX_VERSION>
@@ -511,7 +518,7 @@ macro_rules! delegate_simple {
 
 /// A helper macro for implementing [`ProvidesRegistryState`].
 ///
-/// See [`delegate_registry`] for an example.
+/// See [`delegate_registry`][crate::delegate_registry] for an example.
 #[macro_export]
 macro_rules! registry_handlers {
     ($(@<$( $lt:tt $( : $clt:tt $(+ $dlt:tt )* )? ),+>)? $($ty:ty),* $(,)?) => {

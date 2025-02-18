@@ -19,7 +19,7 @@ type dev_t = u64;
 use libc::dev_t;
 
 /// A preference tranche of dmabuf formats
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DmabufFeedbackTranche {
     /// `dev_t` value for preferred target device. May be scan-out or
     /// renderer device.
@@ -43,6 +43,7 @@ impl Default for DmabufFeedbackTranche {
 /// A single dmabuf format/modifier pair
 // Must have correct representation to be able to mmap format table
 #[repr(C)]
+#[derive(Copy, Clone)]
 pub struct DmabufFormat {
     /// Fourcc format
     pub format: u32,
@@ -124,7 +125,7 @@ impl DmabufState {
         D: Dispatch<zwp_linux_dmabuf_v1::ZwpLinuxDmabufV1, GlobalData> + 'static,
     {
         // Mesa (at least the latest version) also requires version 3 or 4
-        let zwp_linux_dmabuf = GlobalProxy::from(globals.bind(qh, 3..=4, GlobalData));
+        let zwp_linux_dmabuf = GlobalProxy::from(globals.bind(qh, 3..=5, GlobalData));
         Self { zwp_linux_dmabuf, modifiers: Vec::new() }
     }
 
@@ -230,6 +231,9 @@ impl DmabufParams {
     ///
     /// In version `4`, it is a protocol error if `format`/`modifier` pair wasn't
     /// advertised as supported.
+    ///
+    /// `modifier` should be the same for all planes. It is a protocol error in version `5` if
+    /// they differ.
     pub fn add(&self, fd: BorrowedFd<'_>, plane_idx: u32, offset: u32, stride: u32, modifier: u64) {
         let modifier_hi = (modifier >> 32) as u32;
         let modifier_lo = (modifier & 0xffffffff) as u32;

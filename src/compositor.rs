@@ -57,6 +57,24 @@ pub trait CompositorHandler: Sized {
         surface: &wl_surface::WlSurface,
         time: u32,
     );
+
+    /// The surface has entered an output.
+    fn surface_enter(
+        &mut self,
+        conn: &Connection,
+        qh: &QueueHandle<Self>,
+        surface: &wl_surface::WlSurface,
+        output: &wl_output::WlOutput,
+    );
+
+    /// The surface has left an output.
+    fn surface_leave(
+        &mut self,
+        conn: &Connection,
+        qh: &QueueHandle<Self>,
+        surface: &wl_surface::WlSurface,
+        output: &wl_output::WlOutput,
+    );
 }
 
 pub trait SurfaceDataExt: Send + Sync {
@@ -69,7 +87,7 @@ impl SurfaceDataExt for SurfaceData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CompositorState {
     wl_compositor: wl_compositor::WlCompositor,
 }
@@ -116,7 +134,7 @@ impl CompositorState {
     }
 }
 
-/// Data associated with a [`WlSurface`](wl_surface::WlSurface).
+/// Data associated with a [`WlSurface`].
 #[derive(Debug)]
 pub struct SurfaceData {
     /// The scale factor of the output with the highest scale factor.
@@ -189,7 +207,7 @@ impl Default for SurfaceDataInner {
     }
 }
 
-/// An owned [`WlSurface`](wl_surface::WlSurface).
+/// An owned [`WlSurface`].
 ///
 /// This destroys the surface on drop.
 #[derive(Debug)]
@@ -293,12 +311,16 @@ where
         let data = data.surface_data();
         let mut inner = data.inner.lock().unwrap();
 
+        let mut enter_or_leave_output: Option<(wl_output::WlOutput, bool)> = None;
+
         match event {
             wl_surface::Event::Enter { output } => {
-                inner.outputs.push(output);
+                inner.outputs.push(output.clone());
+                enter_or_leave_output.replace((output, true));
             }
             wl_surface::Event::Leave { output } => {
                 inner.outputs.retain(|o| o != &output);
+                enter_or_leave_output.replace((output, false));
             }
             wl_surface::Event::PreferredBufferScale { factor } => {
                 let current_scale = data.scale_factor.load(Ordering::Relaxed);
@@ -326,6 +348,13 @@ where
         // NOTE: with v6 we don't need any special handling of the scale factor, everything
         // was handled from the above, so return.
         if surface.version() >= 6 {
+            drop(inner);
+            match enter_or_leave_output {
+                Some((output, true)) => state.surface_enter(conn, qh, surface, &output),
+                Some((output, false)) => state.surface_leave(conn, qh, surface, &output),
+                None => {}
+            };
+
             return;
         }
 
@@ -346,6 +375,12 @@ where
         });
 
         dispatch_surface_state_updates(state, conn, qh, surface, data, inner);
+
+        match enter_or_leave_output {
+            Some((output, true)) => state.surface_enter(conn, qh, surface, &output),
+            Some((output, false)) => state.surface_leave(conn, qh, surface, &output),
+            None => {}
+        };
     }
 }
 

@@ -1,6 +1,6 @@
 //! This example is horrible. Please make a better one soon.
 
-use std::convert::TryInto;
+use std::{convert::TryInto, num::NonZeroU32};
 
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState},
@@ -10,7 +10,7 @@ use smithay_client_toolkit::{
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
-        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
+        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers},
         pointer::{PointerEvent, PointerEventKind, PointerHandler},
         Capability, SeatHandler, SeatState,
     },
@@ -150,6 +150,26 @@ impl CompositorHandler for SimpleLayer {
     ) {
         self.draw(qh);
     }
+
+    fn surface_enter(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _output: &wl_output::WlOutput,
+    ) {
+        // Not needed for this example.
+    }
+
+    fn surface_leave(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _output: &wl_output::WlOutput,
+    ) {
+        // Not needed for this example.
+    }
 }
 
 impl OutputHandler for SimpleLayer {
@@ -195,13 +215,8 @@ impl LayerShellHandler for SimpleLayer {
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        if configure.new_size.0 == 0 || configure.new_size.1 == 0 {
-            self.width = 256;
-            self.height = 256;
-        } else {
-            self.width = configure.new_size.0;
-            self.height = configure.new_size.1;
-        }
+        self.width = NonZeroU32::new(configure.new_size.0).map_or(256, NonZeroU32::get);
+        self.height = NonZeroU32::new(configure.new_size.1).map_or(256, NonZeroU32::get);
 
         // Initiate the first draw.
         if self.first_configure {
@@ -324,6 +339,7 @@ impl KeyboardHandler for SimpleLayer {
         _: &wl_keyboard::WlKeyboard,
         _serial: u32,
         modifiers: Modifiers,
+        _raw_modifiers: RawModifiers,
         _layout: u32,
     ) {
         println!("Update modifiers: {modifiers:?}");

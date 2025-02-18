@@ -110,7 +110,7 @@ impl SeatState {
 #[allow(missing_debug_implementations)]
 pub struct Keymap<'a>(&'a xkb::Keymap);
 
-impl<'a> Keymap<'a> {
+impl Keymap<'_> {
     /// Get keymap as string in text format. The keymap should always be valid.
     pub fn as_string(&self) -> String {
         self.0.get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1)
@@ -181,6 +181,7 @@ pub trait KeyboardHandler: Sized {
     ///
     /// This happens when one of the modifier keys, such as "Shift", "Control" or "Alt" is pressed or
     /// released.
+    #[allow(clippy::too_many_arguments)]
     fn update_modifiers(
         &mut self,
         conn: &Connection,
@@ -188,6 +189,7 @@ pub trait KeyboardHandler: Sized {
         keyboard: &wl_keyboard::WlKeyboard,
         serial: u32,
         modifiers: Modifiers,
+        raw_modifiers: RawModifiers,
         layout: u32,
     );
 
@@ -255,6 +257,14 @@ pub struct KeyEvent {
     ///
     /// This will always be [`None`] on release events.
     pub utf8: Option<String>,
+}
+
+/// State of keyboard modifiers, in raw form sent by compositor.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct RawModifiers {
+    pub depressed: u32,
+    pub latched: u32,
+    pub locked: u32,
 }
 
 /// The state of keyboard modifiers
@@ -695,13 +705,17 @@ where
                                                 loop_handle.remove(token);
                                             }
 
-                                            let surface = udata
-                                                .focus
-                                                .lock()
-                                                .unwrap()
-                                                .as_ref()
-                                                .cloned()
-                                                .expect("wl_keyboard::key with no focused surface");
+                                            let surface =
+                                                match udata.focus.lock().unwrap().as_ref().cloned()
+                                                {
+                                                    Some(surface) => surface,
+
+                                                    None => {
+                                                        log::warn!(
+                                                "wl_keyboard::key with no focused surface");
+                                                        return;
+                                                    }
+                                                };
 
                                             // Update the current repeat key.
                                             repeat_data.current_repeat.replace(RepeatedKey {
@@ -826,9 +840,15 @@ where
                 // Drop guard before calling user code.
                 drop(guard);
 
+                let raw_modifiers = RawModifiers {
+                    depressed: mods_depressed,
+                    latched: mods_latched,
+                    locked: mods_locked,
+                };
+
                 // Always issue the modifiers update for the user.
                 let modifiers = udata.update_modifiers();
-                data.update_modifiers(conn, qh, keyboard, serial, modifiers, group);
+                data.update_modifiers(conn, qh, keyboard, serial, modifiers, raw_modifiers, group);
             }
 
             wl_keyboard::Event::RepeatInfo { rate, delay } => {

@@ -12,7 +12,7 @@ use smithay_client_toolkit::{
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
-        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
+        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers},
         pointer::{PointerEvent, PointerEventKind, PointerHandler},
         Capability, SeatHandler, SeatState,
     },
@@ -177,6 +177,26 @@ impl CompositorHandler for SimpleWindow {
         _time: u32,
     ) {
         self.draw(conn, qh);
+    }
+
+    fn surface_enter(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _output: &wl_output::WlOutput,
+    ) {
+        // Not needed for this example.
+    }
+
+    fn surface_leave(
+        &mut self,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+        _surface: &wl_surface::WlSurface,
+        _output: &wl_output::WlOutput,
+    ) {
+        // Not needed for this example.
     }
 }
 
@@ -368,6 +388,7 @@ impl KeyboardHandler for SimpleWindow {
         _: &wl_keyboard::WlKeyboard,
         _serial: u32,
         modifiers: Modifiers,
+        _raw_modifiers: RawModifiers,
         _layout: u32,
     ) {
         println!("Update modifiers: {modifiers:?}");

@@ -25,11 +25,20 @@ impl TouchData {
     pub fn seat(&self) -> &WlSeat {
         &self.seat
     }
+
+    /// Serial from the latest touch down event.
+    pub fn latest_down_serial(&self) -> Option<u32> {
+        self.inner.lock().unwrap().latest_down
+    }
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct TouchDataInner {
     events: Vec<TouchEvent>,
+    active_touch_points: Vec<i32>,
+
+    /// The serial of the latest touch down event
+    latest_down: Option<u32>,
 }
 
 #[macro_export]
@@ -163,30 +172,60 @@ where
         qh: &QueueHandle<D>,
     ) {
         let udata = udata.touch_data();
-        match event {
+        let mut guard: std::sync::MutexGuard<'_, TouchDataInner> = udata.inner.lock().unwrap();
+
+        let mut save_event = false;
+        let mut process_events = false;
+
+        match &event {
             // Buffer events until frame is received.
-            TouchEvent::Down { .. }
-            | TouchEvent::Up { .. }
-            | TouchEvent::Motion { .. }
+            TouchEvent::Down { serial, id, .. } => {
+                guard.latest_down = Some(*serial);
+                save_event = true;
+                if let Err(insert_pos) = guard.active_touch_points.binary_search(id) {
+                    guard.active_touch_points.insert(insert_pos, *id);
+                }
+            }
+            TouchEvent::Up { id, .. } => {
+                save_event = true;
+                if let Ok(remove_pos) = guard.active_touch_points.binary_search(id) {
+                    guard.active_touch_points.remove(remove_pos);
+                }
+
+                // Weston doesn't always send a frame even after the last touch point was released:
+                // https://gitlab.freedesktop.org/wayland/weston/-/issues/44
+                // Work around this by processing pending events when there are no more touch points
+                // active.
+                if guard.active_touch_points.is_empty() {
+                    process_events = true;
+                }
+            }
+            TouchEvent::Motion { .. }
             | TouchEvent::Shape { .. }
             | TouchEvent::Orientation { .. } => {
-                let mut guard = udata.inner.lock().unwrap();
-                guard.events.push(event);
+                save_event = true;
             }
             // Process all buffered events.
             TouchEvent::Frame => {
-                let mut guard = udata.inner.lock().unwrap();
-                for event in guard.events.drain(..) {
-                    process_framed_event(data, touch, conn, qh, event);
-                }
+                process_events = true;
             }
             TouchEvent::Cancel => {
-                let mut guard = udata.inner.lock().unwrap();
                 guard.events.clear();
+                guard.active_touch_points.clear();
 
                 data.cancel(conn, qh, touch);
             }
             _ => unreachable!(),
+        }
+
+        if save_event {
+            guard.events.push(event);
+        }
+
+        if process_events {
+            for event in guard.events.drain(..) {
+                process_framed_event(data, touch, conn, qh, event);
+            }
         }
     }
 }

@@ -10,7 +10,8 @@ use rustix::{
 use std::{
     fs::File,
     io,
-    os::unix::prelude::{AsFd, OwnedFd},
+    ops::Deref,
+    os::unix::prelude::{AsFd, BorrowedFd, OwnedFd},
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -33,7 +34,7 @@ use super::CreatePoolError;
 /// This pool does not release buffers. If you need this, use one of the higher level pools.
 #[derive(Debug)]
 pub struct RawPool {
-    pool: wl_shm_pool::WlShmPool,
+    pool: DestroyOnDropPool,
     len: usize,
     mem_file: File,
     mmap: MmapMut,
@@ -57,7 +58,7 @@ impl RawPool {
             .unwrap_or_else(|_| Proxy::inert(shm.backend().clone()));
         let mmap = unsafe { MmapMut::map_mut(&mem_file)? };
 
-        Ok(RawPool { pool, len, mem_file, mmap })
+        Ok(RawPool { pool: DestroyOnDropPool(pool), len, mem_file, mmap })
     }
 
     /// Resizes the memory pool, notifying the server the pool has changed in size.
@@ -148,6 +149,18 @@ impl RawPool {
     /// Returns the pool object used to communicate with the server.
     pub fn pool(&self) -> &wl_shm_pool::WlShmPool {
         &self.pool
+    }
+}
+
+impl AsFd for RawPool {
+    fn as_fd(&self) -> BorrowedFd {
+        self.mem_file.as_fd()
+    }
+}
+
+impl From<RawPool> for OwnedFd {
+    fn from(pool: RawPool) -> Self {
+        pool.mem_file.into()
     }
 }
 
@@ -245,9 +258,20 @@ impl RawPool {
     }
 }
 
-impl Drop for RawPool {
+#[derive(Debug)]
+struct DestroyOnDropPool(wl_shm_pool::WlShmPool);
+
+impl Deref for DestroyOnDropPool {
+    type Target = wl_shm_pool::WlShmPool;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Drop for DestroyOnDropPool {
     fn drop(&mut self) {
-        self.pool.destroy();
+        self.0.destroy();
     }
 }
 
